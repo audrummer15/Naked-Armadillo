@@ -25,8 +25,12 @@ import threading
 import urlparse
 import re
 import os
+import sys
 
 command_queue = []
+
+def show_prompt():
+    return "shell> "
 
 # url decode for postbacks
 def htc(m):
@@ -40,7 +44,7 @@ def urldecode(url):
 class CommandThread(threading.Thread):
     def run(self):
         while True:
-            command = raw_input("shell> ")
+            command = raw_input(show_prompt())
 
             if (command == "quit"):
                 print "Stopping shell... (Press Ctrl+C to exit)"
@@ -76,8 +80,14 @@ class GetHandler(BaseHTTPRequestHandler):
         message=urldecode(qs)
         # remove the parameter cmd
         message=message.replace("cmd=", "")
-        # display the command back decrypted
-        print "\n[*] Received output...\n {}".format(message)
+        if message.startswith("checkin"):
+            print "\n[+] Checkin from {}".format(message.split(":")[1])
+        else:
+            # display the command back decrypted
+            print "\n[*] Received output...\n{}".format(message)
+
+        sys.stdout.write(show_prompt())
+        sys.stdout.flush()
 
     def log_message(self, format, *args):
         return
